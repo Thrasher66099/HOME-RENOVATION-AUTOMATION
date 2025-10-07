@@ -26,12 +26,8 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own profile" ON profiles
   FOR SELECT USING (auth.uid() = id);
 
-CREATE POLICY "Admins can view all profiles" ON profiles
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'Admin'
-    )
-  );
+CREATE POLICY "Users can insert their own profile" ON profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Projects Table
 CREATE TABLE projects (
