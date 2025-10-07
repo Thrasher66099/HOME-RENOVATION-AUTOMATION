@@ -1,13 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertCircle } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { AlertCircle, Plus, X } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 
@@ -16,27 +17,104 @@ interface PropertyMetricsStepProps {
   updateFormData: (data: any) => void
 }
 
-const defaultRooms = [
-  { id: "foyer", name: "Foyer", length: 0, width: 0, miscSf: 0 },
-  { id: "family", name: "Family Room", length: 0, width: 0, miscSf: 0 },
-  { id: "kitchen", name: "Kitchen", length: 0, width: 0, miscSf: 0 },
-  { id: "bedroom1", name: "Bedroom 1", length: 0, width: 0, miscSf: 0 },
-  { id: "bedroom2", name: "Bedroom 2", length: 0, width: 0, miscSf: 0 },
-  { id: "bedroom3", name: "Bedroom 3", length: 0, width: 0, miscSf: 0 },
-  { id: "basement", name: "Basement", length: 0, width: 0, miscSf: 0 },
-]
+const generateDefaultRooms = (bedroomCount: number) => {
+  const baseRooms = [
+    { id: "foyer", name: "Foyer", length: 0, width: 0, miscSf: 0, miscNote: "", isCustom: false },
+    { id: "family", name: "Family Room", length: 0, width: 0, miscSf: 0, miscNote: "", isCustom: false },
+    { id: "kitchen", name: "Kitchen", length: 0, width: 0, miscSf: 0, miscNote: "", isCustom: false },
+  ]
+
+  // Add bedrooms based on count
+  for (let i = 1; i <= bedroomCount; i++) {
+    baseRooms.push({
+      id: `bedroom${i}`,
+      name: `Bedroom ${i}`,
+      length: 0,
+      width: 0,
+      miscSf: 0,
+      miscNote: "",
+      isCustom: false
+    })
+  }
+
+  baseRooms.push({ id: "basement", name: "Basement", length: 0, width: 0, miscSf: 0, miscNote: "", isCustom: false })
+
+  return baseRooms
+}
 
 export function PropertyMetricsStep({ formData, updateFormData }: PropertyMetricsStepProps) {
-  const [rooms, setRooms] = useState(formData.rooms.length > 0 ? formData.rooms : defaultRooms)
+  const [rooms, setRooms] = useState(
+    formData.rooms.length > 0 ? formData.rooms : generateDefaultRooms(formData.bedrooms || 3)
+  )
+  const [customRoomName, setCustomRoomName] = useState("")
 
-  const updateRoom = (roomId: string, field: string, value: number) => {
+  // Update rooms when bedroom count changes
+  useEffect(() => {
+    const currentBedrooms = rooms.filter((r: any) => r.id.startsWith('bedroom')).length
+    const targetBedrooms = formData.bedrooms || 3
+
+    if (currentBedrooms !== targetBedrooms) {
+      const nonBedroomRooms = rooms.filter((r: any) => !r.id.startsWith('bedroom'))
+      const newBedroomRooms = []
+
+      for (let i = 1; i <= targetBedrooms; i++) {
+        const existingBedroom = rooms.find((r: any) => r.id === `bedroom${i}`)
+        newBedroomRooms.push(existingBedroom || {
+          id: `bedroom${i}`,
+          name: `Bedroom ${i}`,
+          length: 0,
+          width: 0,
+          miscSf: 0,
+          miscNote: "",
+          isCustom: false
+        })
+      }
+
+      // Insert bedrooms after kitchen (index 2)
+      const updatedRooms = [
+        ...nonBedroomRooms.slice(0, 3),
+        ...newBedroomRooms,
+        ...nonBedroomRooms.slice(3)
+      ]
+
+      setRooms(updatedRooms)
+      updateFormData({ rooms: updatedRooms })
+    }
+  }, [formData.bedrooms])
+
+  const updateRoom = (roomId: string, field: string, value: any) => {
     const updatedRooms = rooms.map((room: any) => (room.id === roomId ? { ...room, [field]: value } : room))
     setRooms(updatedRooms)
     updateFormData({ rooms: updatedRooms })
   }
 
+  const addCustomRoom = () => {
+    if (!customRoomName.trim()) return
+
+    const newRoom = {
+      id: `custom-${Date.now()}`,
+      name: customRoomName,
+      length: 0,
+      width: 0,
+      miscSf: 0,
+      miscNote: "",
+      isCustom: true
+    }
+
+    const updatedRooms = [...rooms, newRoom]
+    setRooms(updatedRooms)
+    updateFormData({ rooms: updatedRooms })
+    setCustomRoomName("")
+  }
+
+  const removeCustomRoom = (roomId: string) => {
+    const updatedRooms = rooms.filter((room: any) => room.id !== roomId)
+    setRooms(updatedRooms)
+    updateFormData({ rooms: updatedRooms })
+  }
+
   const getTotalSf = (room: any) => {
-    return room.length * room.width + room.miscSf
+    return (room.length || 0) * (room.width || 0) + (room.miscSf || 0)
   }
 
   return (
@@ -84,24 +162,51 @@ export function PropertyMetricsStep({ formData, updateFormData }: PropertyMetric
 
       {/* Room Dimensions */}
       <Card className="p-4">
-        <h3 className="font-medium mb-4">Room Dimensions</h3>
-        <Tabs defaultValue="foyer" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium">Room Dimensions</h3>
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Custom room name..."
+              value={customRoomName}
+              onChange={(e) => setCustomRoomName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addCustomRoom()}
+              className="w-48"
+            />
+            <Button onClick={addCustomRoom} size="sm" variant="outline">
+              <Plus className="h-4 w-4 mr-1" />
+              Add Room
+            </Button>
+          </div>
+        </div>
+        <Tabs defaultValue={rooms[0]?.id} className="w-full">
+          <TabsList className="grid w-full gap-1" style={{ gridTemplateColumns: `repeat(${Math.min(rooms.length, 7)}, minmax(0, 1fr))` }}>
             {rooms.map((room: any) => (
-              <TabsTrigger key={room.id} value={room.id} className="text-xs">
+              <TabsTrigger key={room.id} value={room.id} className="text-xs relative group">
                 {room.name}
+                {room.isCustom && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeCustomRoom(room.id)
+                    }}
+                    className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
               </TabsTrigger>
             ))}
           </TabsList>
           {rooms.map((room: any) => (
             <TabsContent key={room.id} value={room.id} className="space-y-4 mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor={`${room.id}-length`}>Length (LF)</Label>
                   <Input
                     id={`${room.id}-length`}
                     type="number"
-                    value={room.length}
+                    step="0.1"
+                    value={room.length || ''}
                     onChange={(e) => updateRoom(room.id, "length", Number.parseFloat(e.target.value) || 0)}
                   />
                 </div>
@@ -110,7 +215,8 @@ export function PropertyMetricsStep({ formData, updateFormData }: PropertyMetric
                   <Input
                     id={`${room.id}-width`}
                     type="number"
-                    value={room.width}
+                    step="0.1"
+                    value={room.width || ''}
                     onChange={(e) => updateRoom(room.id, "width", Number.parseFloat(e.target.value) || 0)}
                   />
                 </div>
@@ -119,14 +225,26 @@ export function PropertyMetricsStep({ formData, updateFormData }: PropertyMetric
                   <Input
                     id={`${room.id}-misc`}
                     type="number"
-                    value={room.miscSf}
+                    step="0.1"
+                    value={room.miscSf || ''}
                     onChange={(e) => updateRoom(room.id, "miscSf", Number.parseFloat(e.target.value) || 0)}
                   />
                 </div>
                 <div className="grid gap-2">
+                  <Label htmlFor={`${room.id}-miscNote`}>Misc Note</Label>
+                  <Input
+                    id={`${room.id}-miscNote`}
+                    placeholder="Optional note..."
+                    value={room.miscNote || ''}
+                    onChange={(e) => updateRoom(room.id, "miscNote", e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
                   <Label>Total SF</Label>
-                  <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center">
-                    <Badge variant="secondary">{getTotalSf(room).toFixed(0)} SF</Badge>
+                  <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center justify-center">
+                    <Badge variant="secondary" className="text-base font-semibold">
+                      {getTotalSf(room).toFixed(1)} SF
+                    </Badge>
                   </div>
                 </div>
               </div>
