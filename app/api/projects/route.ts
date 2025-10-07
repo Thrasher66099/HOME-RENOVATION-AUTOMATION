@@ -35,10 +35,16 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching projects:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('Error details:', JSON.stringify(error, null, 2))
+      return NextResponse.json({
+        error: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      }, { status: 500 })
     }
 
-    return NextResponse.json({ projects })
+    return NextResponse.json({ projects: projects || [] })
   } catch (error) {
     console.error('Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
