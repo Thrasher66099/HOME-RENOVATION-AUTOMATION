@@ -41,9 +41,11 @@ export function AppSidebar() {
       >
         {/* New Project Button */}
         <div className="p-4">
-          <Button className="w-full justify-start gap-2" size={collapsed ? "icon" : "default"}>
-            <Plus className="h-4 w-4" />
-            {!collapsed && <span>New Project</span>}
+          <Button asChild className="w-full justify-start gap-2" size={collapsed ? "icon" : "default"}>
+            <Link href="/projects/new">
+              <Plus className="h-4 w-4" />
+              {!collapsed && <span>New Project</span>}
+            </Link>
           </Button>
         </div>
 
