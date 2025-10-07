@@ -84,12 +84,12 @@ export default function ProjectsPage() {
                   Manage all your renovation projects
                 </p>
               </div>
-              <Link href="/projects/new">
-                <Button>
+              <Button asChild>
+                <Link href="/projects/new">
                   <Plus className="mr-2 h-4 w-4" />
                   New Project
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
 
             {/* Search */}
@@ -126,12 +126,12 @@ export default function ProjectsPage() {
                     </p>
                   </div>
                   {!searchQuery && (
-                    <Link href="/projects/new">
-                      <Button>
+                    <Button asChild>
+                      <Link href="/projects/new">
                         <Plus className="mr-2 h-4 w-4" />
                         Create Project
-                      </Button>
-                    </Link>
+                      </Link>
+                    </Button>
                   )}
                 </div>
               </Card>
