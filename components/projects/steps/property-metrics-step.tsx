@@ -179,9 +179,9 @@ export function PropertyMetricsStep({ formData, updateFormData }: PropertyMetric
           </div>
         </div>
         <Tabs defaultValue={rooms[0]?.id} className="w-full">
-          <TabsList className="grid w-full gap-1" style={{ gridTemplateColumns: `repeat(${Math.min(rooms.length, 7)}, minmax(0, 1fr))` }}>
+          <TabsList className="grid w-full gap-1 h-auto py-1" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(120px, 1fr))` }}>
             {rooms.map((room: any) => (
-              <TabsTrigger key={room.id} value={room.id} className="text-xs relative group">
+              <TabsTrigger key={room.id} value={room.id} className="text-xs relative group h-9">
                 {room.name}
                 {room.isCustom && (
                   <button
