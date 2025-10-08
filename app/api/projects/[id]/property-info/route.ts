@@ -68,7 +68,15 @@ export async function POST(
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Error updating property info:', error)
+        return NextResponse.json({
+          error: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        }, { status: 500 })
+      }
       propertyInfo = data
     } else {
       // Create new
@@ -78,7 +86,16 @@ export async function POST(
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Error creating property info:', error)
+        console.error('Property data:', JSON.stringify(propertyData, null, 2))
+        return NextResponse.json({
+          error: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        }, { status: 500 })
+      }
       propertyInfo = data
     }
 
@@ -92,14 +109,29 @@ export async function POST(
 
       // Insert new rooms
       if (rooms.length > 0) {
-        const roomsToInsert = rooms.map(room => ({
-          ...room,
-          property_info_id: propertyInfo.id
+        const roomsToInsert = rooms.map((room: any) => ({
+          property_info_id: propertyInfo.id,
+          name: room.name,
+          length: room.length || 0,
+          width: room.width || 0,
+          misc_sf: room.miscSf || 0,
+          misc_note: room.miscNote || ''
         }))
 
-        await supabase
+        const { error: roomError } = await supabase
           .from('rooms')
           .insert(roomsToInsert)
+
+        if (roomError) {
+          console.error('Error inserting rooms:', roomError)
+          console.error('Rooms data:', JSON.stringify(roomsToInsert, null, 2))
+          return NextResponse.json({
+            error: roomError.message,
+            details: roomError.details,
+            hint: roomError.hint,
+            code: roomError.code
+          }, { status: 500 })
+        }
       }
     }
 
