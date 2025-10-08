@@ -106,7 +106,9 @@ export function PropertyFormWizard() {
       })
 
       if (!projectResponse.ok) {
-        throw new Error('Failed to create project')
+        const errorData = await projectResponse.json()
+        console.error('Project creation failed:', errorData)
+        throw new Error(errorData.error || 'Failed to create project')
       }
 
       const { project } = await projectResponse.json()
@@ -148,7 +150,9 @@ export function PropertyFormWizard() {
       })
 
       if (!propertyResponse.ok) {
-        throw new Error('Failed to create property info')
+        const errorData = await propertyResponse.json()
+        console.error('Property info creation failed:', errorData)
+        throw new Error(errorData.error || 'Failed to create property info')
       }
 
       toast({

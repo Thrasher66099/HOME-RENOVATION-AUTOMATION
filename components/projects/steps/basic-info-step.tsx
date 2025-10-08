@@ -21,6 +21,16 @@ export function BasicInfoStep({ formData, updateFormData }: BasicInfoStepProps) 
       {/* Address Fields */}
       <div className="grid gap-4">
         <div className="grid gap-2">
+          <Label htmlFor="projectName">Project Name *</Label>
+          <Input
+            id="projectName"
+            placeholder="Oak Street Renovation"
+            value={formData.projectName}
+            onChange={(e) => updateFormData({ projectName: e.target.value })}
+          />
+        </div>
+
+        <div className="grid gap-2">
           <Label htmlFor="street">Street Address *</Label>
           <Input
             id="street"
