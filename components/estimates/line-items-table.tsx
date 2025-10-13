@@ -8,142 +8,139 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Trash2, Search } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { UnitCostSearch } from "@/components/estimates/unit-cost-search"
 
 interface LineItem {
   id: string
-  required: boolean
-  action: string
-  description: string
+  room_name: string
+  category: string
+  is_required: boolean
+  action_description: string
+  sku: string
   quantity: number
-  material: string
-  costPer: number
-  tax: number
-  labor: number
+  unit: string
+  unit_cost: number
   notes: string
+  sort_order: number
+  unit_cost_id?: string
 }
 
 interface LineItemsTableProps {
   categoryId: string
+  categoryName: string
   roomId: string
+  roomName: string
+  items: LineItem[]
+  onUpdateItems: (items: LineItem[]) => void
+  roomTotalSf?: number
 }
 
-export function LineItemsTable({ categoryId, roomId }: LineItemsTableProps) {
-  const [items, setItems] = useState<LineItem[]>([
-    {
-      id: "1",
-      required: true,
-      action: "install",
-      description: "Interior Paint - Walls",
-      quantity: 250,
-      material: "Behr Premium Plus",
-      costPer: 0.85,
-      tax: 0.08,
-      labor: 1.2,
-      notes: "",
-    },
-  ])
+export function LineItemsTable({
+  categoryId,
+  categoryName,
+  roomId,
+  roomName,
+  items,
+  onUpdateItems,
+  roomTotalSf
+}: LineItemsTableProps) {
+  const [searchOpen, setSearchOpen] = useState(false)
 
-  const [searchQuery, setSearchQuery] = useState("")
-
-  const addItem = () => {
+  const addItem = (unitCostData?: any) => {
     const newItem: LineItem = {
-      id: Date.now().toString(),
-      required: false,
-      action: "install",
-      description: "",
-      quantity: 0,
-      material: "",
-      costPer: 0,
-      tax: 0.08,
-      labor: 0,
+      id: `temp-${Date.now()}-${Math.random()}`,
+      room_name: roomName,
+      category: categoryId,
+      is_required: true,
+      action_description: unitCostData?.action_item || "",
+      sku: unitCostData?.sku || "",
+      quantity: roomTotalSf || 0,
+      unit: unitCostData?.unit || "SF",
+      unit_cost: unitCostData ? calculateUnitCost(unitCostData) : 0,
       notes: "",
+      sort_order: items.length,
+      unit_cost_id: unitCostData?.id
     }
-    setItems([...items, newItem])
+    onUpdateItems([...items, newItem])
+  }
+
+  const calculateUnitCost = (unitCostData: any) => {
+    const materialWithTax = unitCostData.material_cost * (1 + (unitCostData.tax_rate || 0.0625))
+    const laborWithOverhead = unitCostData.labor_cost * (
+      1 +
+      (unitCostData.oh_profit || 0.06) +
+      (unitCostData.workmans_comp || 0.01) +
+      (unitCostData.insurance || 0.01)
+    )
+    return materialWithTax + laborWithOverhead + (unitCostData.gc_fee || 0)
   }
 
   const removeItem = (id: string) => {
-    setItems(items.filter((item) => item.id !== id))
+    onUpdateItems(items.filter((item) => item.id !== id))
   }
 
   const updateItem = (id: string, field: keyof LineItem, value: any) => {
-    setItems(items.map((item) => (item.id === id ? { ...item, [field]: value } : item)))
+    onUpdateItems(
+      items.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+    )
   }
 
   const calculateTotal = (item: LineItem) => {
-    const materialCost = item.quantity * item.costPer
-    const taxAmount = materialCost * item.tax
-    const laborCost = item.quantity * item.labor
-    return materialCost + taxAmount + laborCost
+    return item.quantity * item.unit_cost
   }
 
   return (
     <div className="space-y-4">
-      {/* Search Bar */}
+      {/* Action Bar */}
       <div className="flex items-center gap-2">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search item library..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Button onClick={addItem} size="sm">
+        <Button onClick={() => setSearchOpen(true)} size="sm" variant="outline">
+          <Search className="h-4 w-4 mr-2" />
+          Search Unit Costs
+        </Button>
+        <Button onClick={() => addItem()} size="sm" variant="outline">
           <Plus className="h-4 w-4 mr-2" />
-          Add Item
+          Add Custom Item
         </Button>
       </div>
 
       {/* Table */}
-      <div className="border rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">Req</TableHead>
-              <TableHead className="w-32">Action</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="w-24">Qty/SF</TableHead>
-              <TableHead className="w-40">Material/SKU</TableHead>
-              <TableHead className="w-24">Cost Per</TableHead>
-              <TableHead className="w-24">Labor</TableHead>
-              <TableHead className="w-28">Total</TableHead>
-              <TableHead className="w-12"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.length === 0 ? (
+      {items.length > 0 ? (
+        <div className="border rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                  No items added. Click "Add Item" to get started.
-                </TableCell>
+                <TableHead className="w-12">Req</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="w-32">SKU</TableHead>
+                <TableHead className="w-24">Qty</TableHead>
+                <TableHead className="w-20">Unit</TableHead>
+                <TableHead className="w-28">Unit Cost</TableHead>
+                <TableHead className="w-28">Total</TableHead>
+                <TableHead className="w-12"></TableHead>
               </TableRow>
-            ) : (
-              items.map((item) => (
-                <TableRow key={item.id} className={item.required ? "bg-primary/5" : ""}>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => (
+                <TableRow key={item.id} className={item.is_required ? "bg-primary/5" : ""}>
                   <TableCell>
                     <Checkbox
-                      checked={item.required}
-                      onCheckedChange={(checked) => updateItem(item.id, "required", checked)}
+                      checked={item.is_required}
+                      onCheckedChange={(checked) => updateItem(item.id, "is_required", checked)}
                     />
                   </TableCell>
                   <TableCell>
-                    <Select value={item.action} onValueChange={(value) => updateItem(item.id, "action", value)}>
-                      <SelectTrigger className="h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="install">Install</SelectItem>
-                        <SelectItem value="replace">Replace</SelectItem>
-                        <SelectItem value="repair">Repair</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      value={item.action_description}
+                      onChange={(e) => updateItem(item.id, "action_description", e.target.value)}
+                      placeholder="Item description"
+                      className="h-8"
+                    />
                   </TableCell>
                   <TableCell>
                     <Input
-                      value={item.description}
-                      onChange={(e) => updateItem(item.id, "description", e.target.value)}
-                      placeholder="Item description"
+                      value={item.sku}
+                      onChange={(e) => updateItem(item.id, "sku", e.target.value)}
+                      placeholder="SKU"
                       className="h-8"
                     />
                   </TableCell>
@@ -153,37 +150,34 @@ export function LineItemsTable({ categoryId, roomId }: LineItemsTableProps) {
                       value={item.quantity}
                       onChange={(e) => updateItem(item.id, "quantity", Number.parseFloat(e.target.value) || 0)}
                       className="h-8"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={item.material}
-                      onChange={(e) => updateItem(item.id, "material", e.target.value)}
-                      placeholder="Material/SKU"
-                      className="h-8"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      value={item.costPer}
-                      onChange={(e) => updateItem(item.id, "costPer", Number.parseFloat(e.target.value) || 0)}
-                      className="h-8"
                       step="0.01"
                     />
                   </TableCell>
                   <TableCell>
+                    <Select value={item.unit} onValueChange={(value) => updateItem(item.id, "unit", value)}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="SF">SF</SelectItem>
+                        <SelectItem value="LF">LF</SelectItem>
+                        <SelectItem value="EA">EA</SelectItem>
+                        <SelectItem value="Unit">Unit</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
                     <Input
                       type="number"
-                      value={item.labor}
-                      onChange={(e) => updateItem(item.id, "labor", Number.parseFloat(e.target.value) || 0)}
-                      className="h-8"
+                      value={item.unit_cost}
+                      onChange={(e) => updateItem(item.id, "unit_cost", Number.parseFloat(e.target.value) || 0)}
+                      className="h-8 font-mono"
                       step="0.01"
                     />
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className="font-mono">
-                      ${calculateTotal(item).toFixed(2)}
+                      ${calculateTotal(item).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -192,11 +186,24 @@ export function LineItemsTable({ categoryId, roomId }: LineItemsTableProps) {
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        <div className="border rounded-lg p-8 text-center text-muted-foreground">
+          <p>No items in this category</p>
+          <p className="text-sm mt-1">Click "Search Unit Costs" to add items from your library</p>
+        </div>
+      )}
+
+      {/* Unit Cost Search Dialog */}
+      <UnitCostSearch
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        onSelectUnitCost={addItem}
+        categoryFilter={categoryId}
+      />
     </div>
   )
 }
