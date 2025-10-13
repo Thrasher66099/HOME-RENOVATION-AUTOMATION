@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -25,7 +25,19 @@ interface Room {
   misc_note: string
 }
 
-export function PropertyFormWizard() {
+interface PropertyFormWizardProps {
+  mode?: 'create' | 'edit'
+  projectId?: string
+  initialProject?: any
+  initialPropertyInfo?: any
+}
+
+export function PropertyFormWizard({
+  mode = 'create',
+  projectId,
+  initialProject,
+  initialPropertyInfo
+}: PropertyFormWizardProps = {}) {
   const router = useRouter()
   const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
@@ -68,6 +80,50 @@ export function PropertyFormWizard() {
     rooms: [] as Room[],
   })
 
+  // Initialize form data with existing project data in edit mode
+  useEffect(() => {
+    if (mode === 'edit' && initialProject && initialPropertyInfo) {
+      setFormData({
+        projectName: initialProject.name || "",
+        street: initialProject.address?.street || "",
+        city: initialProject.address?.city || "",
+        state: initialProject.address?.state || "",
+        zip: initialProject.address?.zip || "",
+        entityNumber: initialProject.entity_num || "",
+        rent: initialPropertyInfo.rent_amount?.toString() || "",
+        gasOn: initialPropertyInfo.utilities?.gas_on || false,
+        waterOn: initialPropertyInfo.utilities?.water_on || false,
+        powerOn: initialPropertyInfo.utilities?.power_on || false,
+        breakers_off: initialPropertyInfo.safety_checklist?.breakers_off || false,
+        water_main_off: initialPropertyInfo.safety_checklist?.water_main_off || false,
+        lockboxCode: initialPropertyInfo.safety_checklist?.lockbox_code || "",
+        region: initialPropertyInfo.region_id || "",
+        bedrooms: initialPropertyInfo.bedrooms || 3,
+        bathrooms: initialPropertyInfo.bathrooms || 2,
+        sqft_bpo: initialPropertyInfo.sq_ft_bpo || 0,
+        sqft_actual: initialPropertyInfo.sq_ft_actual || 0,
+        facade_type: initialPropertyInfo.facade_type || "",
+        garage_type: initialPropertyInfo.garage_type || "",
+        garage_size: initialPropertyInfo.garage_size || 0,
+        has_basement: initialPropertyInfo.has_basement || false,
+        floors: initialPropertyInfo.floors || 1,
+        foundation_area: initialPropertyInfo.foundation_area || 0,
+        roof_area: initialPropertyInfo.roof_area || 0,
+        roof_age: initialPropertyInfo.roof_age || 0,
+        hvac_age: initialPropertyInfo.hvac_age || 0,
+        water_heater_age: initialPropertyInfo.water_heater_age || 0,
+        notes: initialPropertyInfo.notes || "",
+        rooms: initialPropertyInfo.rooms?.map((room: any) => ({
+          name: room.name,
+          length: room.length,
+          width: room.width,
+          misc_sf: room.misc_sf,
+          misc_note: room.misc_note || ""
+        })) || [],
+      })
+    }
+  }, [mode, initialProject, initialPropertyInfo])
+
   const updateFormData = (data: Partial<typeof formData>) => {
     setFormData((prev) => ({ ...prev, ...data }))
   }
@@ -88,33 +144,61 @@ export function PropertyFormWizard() {
     setLoading(true)
 
     try {
-      // Create project
-      const projectResponse = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.projectName,
-          address: {
-            street: formData.street,
-            city: formData.city,
-            state: formData.state,
-            zip: formData.zip
-          },
-          entity_num: formData.entityNumber,
-          status: 'Draft'
-        })
-      })
+      let currentProjectId = projectId
 
-      if (!projectResponse.ok) {
-        const errorData = await projectResponse.json()
-        console.error('Project creation failed:', errorData)
-        throw new Error(errorData.error || 'Failed to create project')
+      if (mode === 'edit') {
+        // Update existing project
+        const projectResponse = await fetch(`/api/projects/${projectId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: formData.projectName,
+            address: {
+              street: formData.street,
+              city: formData.city,
+              state: formData.state,
+              zip: formData.zip
+            },
+            entity_num: formData.entityNumber,
+            status: initialProject?.status || 'Draft'
+          })
+        })
+
+        if (!projectResponse.ok) {
+          const errorData = await projectResponse.json()
+          console.error('Project update failed:', errorData)
+          throw new Error(errorData.error || 'Failed to update project')
+        }
+      } else {
+        // Create new project
+        const projectResponse = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: formData.projectName,
+            address: {
+              street: formData.street,
+              city: formData.city,
+              state: formData.state,
+              zip: formData.zip
+            },
+            entity_num: formData.entityNumber,
+            status: 'Draft'
+          })
+        })
+
+        if (!projectResponse.ok) {
+          const errorData = await projectResponse.json()
+          console.error('Project creation failed:', errorData)
+          throw new Error(errorData.error || 'Failed to create project')
+        }
+
+        const { project } = await projectResponse.json()
+        currentProjectId = project.id
       }
 
-      const { project } = await projectResponse.json()
-
-      // Create property info
-      const propertyResponse = await fetch(`/api/projects/${project.id}/property-info`, {
+      // Create or update property info
+      const propertyResponse = await fetch(`/api/projects/${currentProjectId}/property-info`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -151,22 +235,22 @@ export function PropertyFormWizard() {
 
       if (!propertyResponse.ok) {
         const errorData = await propertyResponse.json()
-        console.error('Property info creation failed:', errorData)
-        throw new Error(errorData.error || 'Failed to create property info')
+        console.error('Property info save failed:', errorData)
+        throw new Error(errorData.error || 'Failed to save property info')
       }
 
       toast({
         title: "Success!",
-        description: "Project created successfully"
+        description: mode === 'edit' ? "Project updated successfully" : "Project created successfully"
       })
 
-      // Redirect to project page or estimates
-      router.push(`/projects/${project.id}`)
+      // Redirect to project page
+      router.push(`/projects/${currentProjectId}`)
     } catch (error) {
-      console.error('Error creating project:', error)
+      console.error('Error saving project:', error)
       toast({
         title: "Error",
-        description: "Failed to create project. Please try again.",
+        description: mode === 'edit' ? "Failed to update project. Please try again." : "Failed to create project. Please try again.",
         variant: "destructive"
       })
     } finally {
@@ -178,8 +262,12 @@ export function PropertyFormWizard() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">New Project</h1>
-        <p className="text-muted-foreground mt-1">Create a new renovation project</p>
+        <h1 className="text-3xl font-bold tracking-tight">
+          {mode === 'edit' ? 'Edit Project' : 'New Project'}
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          {mode === 'edit' ? 'Update project details and property information' : 'Create a new renovation project'}
+        </p>
       </div>
 
       {/* Stepper */}
@@ -242,7 +330,10 @@ export function PropertyFormWizard() {
           </Button>
         ) : (
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Creating..." : "Create Project"}
+            {loading
+              ? (mode === 'edit' ? "Updating..." : "Creating...")
+              : (mode === 'edit' ? "Update Project" : "Create Project")
+            }
           </Button>
         )}
       </div>
