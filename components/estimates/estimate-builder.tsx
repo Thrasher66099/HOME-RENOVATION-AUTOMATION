@@ -5,11 +5,21 @@ import { useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Plus, Save, FileText, Check } from "lucide-react"
+import { Plus, Save, FileText, Check, AlertCircle } from "lucide-react"
 import { EstimateRoom } from "@/components/estimates/estimate-room"
 import { EstimateSidebar } from "@/components/estimates/estimate-sidebar"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface Room {
   id: string
@@ -76,6 +86,8 @@ export function EstimateBuilder({ projectId, project, propertyInfo }: EstimateBu
   const [estimateId, setEstimateId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [isFinalizing, setIsFinalizing] = useState(false)
+  const [validationDialogOpen, setValidationDialogOpen] = useState(false)
+  const [validationIssues, setValidationIssues] = useState<string[]>([])
 
   // Initialize estimate on mount
   useEffect(() => {
@@ -122,6 +134,58 @@ export function EstimateBuilder({ projectId, project, propertyInfo }: EstimateBu
       ...prev,
       [roomId]: items
     }))
+  }
+
+  const validateEstimate = () => {
+    const issues: string[] = []
+
+    // Check if estimate has any line items
+    const allLineItems = Object.values(lineItems).flat()
+    if (allLineItems.length === 0) {
+      issues.push('No line items have been added to the estimate')
+      return issues
+    }
+
+    // Check for required line items
+    const requiredItems = allLineItems.filter(item => item.is_required)
+    if (requiredItems.length === 0) {
+      issues.push('At least one item must be marked as required')
+    }
+
+    // Check for incomplete line items
+    const incompleteItems = allLineItems.filter(item =>
+      !item.action_description ||
+      item.quantity <= 0 ||
+      item.unit_cost <= 0
+    )
+
+    if (incompleteItems.length > 0) {
+      issues.push(`${incompleteItems.length} line item(s) have missing or invalid data (description, quantity, or unit cost)`)
+    }
+
+    // Check if property info/region is set for regional adjustments
+    if (!propertyInfo?.region_id) {
+      issues.push('No region selected for regional cost adjustments')
+    }
+
+    // Check for minimum estimate value
+    const total = calculateTotals().subtotal
+    if (total <= 0) {
+      issues.push('Estimate total must be greater than $0')
+    }
+
+    return issues
+  }
+
+  const handleFinalizeClick = () => {
+    const issues = validateEstimate()
+
+    if (issues.length > 0) {
+      setValidationIssues(issues)
+      setValidationDialogOpen(true)
+    } else {
+      saveEstimate(true)
+    }
   }
 
   const saveEstimate = async (finalize: boolean = false) => {
@@ -206,7 +270,7 @@ export function EstimateBuilder({ projectId, project, propertyInfo }: EstimateBu
             {saving ? 'Saving...' : 'Save Draft'}
           </Button>
           <Button
-            onClick={() => saveEstimate(true)}
+            onClick={handleFinalizeClick}
             disabled={saving || isFinalizing}
           >
             <Check className="mr-2 h-4 w-4" />
@@ -262,6 +326,38 @@ export function EstimateBuilder({ projectId, project, propertyInfo }: EstimateBu
           />
         </div>
       </div>
+
+      {/* Validation Dialog */}
+      <AlertDialog open={validationDialogOpen} onOpenChange={setValidationDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-yellow-600" />
+              Cannot Finalize Estimate
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Please address the following issues before finalizing this estimate:
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="my-4">
+            <ul className="space-y-2">
+              {validationIssues.map((issue, index) => (
+                <li key={index} className="flex items-start gap-2 text-sm">
+                  <span className="text-destructive mt-0.5">•</span>
+                  <span>{issue}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setValidationDialogOpen(false)}>
+              Got it
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
