@@ -9,8 +9,19 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { createClient } from "@/lib/supabase/client"
-import { FileText, MapPin, DollarSign, Calendar } from "lucide-react"
+import { FileText, MapPin, DollarSign, Calendar, Edit, Trash2 } from "lucide-react"
 import Link from "next/link"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
 
 interface Project {
   id: string
@@ -33,6 +44,8 @@ export default function ProjectDetailPage() {
   const router = useRouter()
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -52,9 +65,33 @@ export default function ProjectDetailPage() {
       setProject(data)
     } catch (error) {
       console.error('Error fetching project:', error)
+      toast.error('Failed to load project')
       router.push('/projects')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!project) return
+
+    try {
+      setDeleting(true)
+
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete project')
+      }
+
+      toast.success(`Project "${project.name}" deleted successfully`)
+      router.push('/projects')
+    } catch (error) {
+      console.error('Error deleting project:', error)
+      toast.error('Failed to delete project')
+      setDeleting(false)
     }
   }
 
@@ -106,8 +143,16 @@ export default function ProjectDetailPage() {
               <div className="flex gap-2">
                 <Button variant="outline" asChild>
                   <Link href={`/projects/${project.id}/edit`}>
+                    <Edit className="mr-2 h-4 w-4" />
                     Edit Project
                   </Link>
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
                 </Button>
                 <Button asChild>
                   <Link href={`/projects/${project.id}/estimates/new`}>
@@ -119,7 +164,7 @@ export default function ProjectDetailPage() {
             </div>
 
             {/* Project Info Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               <Card className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary/10 rounded-lg">
@@ -159,6 +204,20 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
               </Card>
+
+              <Card className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Calendar className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Updated</p>
+                    <p className="font-semibold">
+                      {new Date(project.updated_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </Card>
             </div>
 
             {/* Empty State - Estimates will go here */}
@@ -184,6 +243,29 @@ export default function ProjectDetailPage() {
           </div>
         </main>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this project?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the project <strong>"{project.name}"</strong> and all associated data including estimates, purchase orders, and expenses.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting...' : 'Delete Project'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

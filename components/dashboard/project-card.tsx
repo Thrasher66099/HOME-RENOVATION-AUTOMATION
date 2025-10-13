@@ -1,11 +1,10 @@
 "use client"
 
 import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MoreVertical, Edit, Eye, Trash2, MapPin } from "lucide-react"
+import { MapPin } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 interface Project {
   id: string
@@ -28,6 +27,8 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ project }: ProjectCardProps) {
+  const router = useRouter()
+
   const formatCurrency = (amount: number | null) => {
     if (!amount) return '$0'
     return new Intl.NumberFormat('en-US', {
@@ -46,16 +47,21 @@ export function ProjectCard({ project }: ProjectCardProps) {
     })
   }
 
+  const handleCardClick = () => {
+    router.push(`/projects/${project.id}`)
+  }
+
   return (
-    <Card className="p-4 hover:shadow-lg transition-shadow cursor-pointer group">
+    <Card
+      className="p-4 hover:shadow-lg transition-all cursor-pointer hover:border-primary/50"
+      onClick={handleCardClick}
+    >
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
-          <Link href={`/projects/${project.id}`}>
-            <h4 className="font-medium text-sm leading-tight mb-1 hover:text-primary transition-colors">
-              {project.name}
-            </h4>
-          </Link>
+          <h4 className="font-medium text-sm leading-tight mb-1 group-hover:text-primary transition-colors">
+            {project.name}
+          </h4>
           <div className="flex items-start gap-1 text-xs text-muted-foreground">
             <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
             <span>
@@ -66,35 +72,6 @@ export function ProjectCard({ project }: ProjectCardProps) {
             <p className="text-xs text-muted-foreground mt-1">{project.entity_num}</p>
           )}
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link href={`/projects/${project.id}`}>
-                <Eye className="mr-2 h-4 w-4" />
-                View Details
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={`/projects/${project.id}/edit`}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Project
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
 
       {/* Budget Info */}
