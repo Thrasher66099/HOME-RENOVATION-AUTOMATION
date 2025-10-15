@@ -80,19 +80,22 @@ export default function EditProjectPage() {
       if (projectError) throw projectError
       setProject(projectData)
 
-      // Fetch property info with rooms
+      // Fetch property info with rooms - use maybeSingle to handle 0 or 1 results
       const { data: propertyData, error: propertyError } = await supabase
         .from('property_infos')
         .select('*, rooms(*)')
         .eq('project_id', params.id)
-        .single()
+        .maybeSingle()
 
-      if (propertyError && propertyError.code !== 'PGRST116') {
-        throw propertyError
+      if (propertyError) {
+        console.error('Error fetching property info:', propertyError)
+        // Don't throw - property info might not exist yet
       }
 
       if (propertyData) {
         setPropertyInfo(propertyData)
+      } else {
+        console.log('No property info found for project, will create new')
       }
 
     } catch (error) {
