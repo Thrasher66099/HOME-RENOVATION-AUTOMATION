@@ -94,17 +94,46 @@ export function EstimateBuilder({ projectId, project, propertyInfo }: EstimateBu
     createDraftEstimate()
   }, [projectId])
 
-  // Merge property rooms with default rooms
+  // Load rooms from property info
   useEffect(() => {
     if (propertyInfo?.rooms && propertyInfo.rooms.length > 0) {
-      const propertyRoomNames = propertyInfo.rooms.map(r => r.name.toLowerCase().replace(/\s+/g, '_'))
-      const mergedRooms = DEFAULT_ROOMS.map(defaultRoom => {
-        const matchingRoom = propertyInfo.rooms.find(
-          r => r.name.toLowerCase().replace(/\s+/g, '_') === defaultRoom.id
-        )
-        return matchingRoom ? { ...defaultRoom, ...matchingRoom } : defaultRoom
+      // Start with general default rooms
+      const generalRooms = DEFAULT_ROOMS.filter(r =>
+        ['general', 'exterior', 'garage'].includes(r.id)
+      )
+
+      // Convert property rooms to estimate room format with icons
+      const propertyRooms = propertyInfo.rooms.map(room => {
+        const roomNameLower = room.name.toLowerCase()
+
+        // Assign icons based on room name
+        let icon = '📦' // default
+        if (roomNameLower.includes('kitchen')) icon = '🍳'
+        else if (roomNameLower.includes('bedroom')) icon = '🛏️'
+        else if (roomNameLower.includes('bathroom')) icon = '🛁'
+        else if (roomNameLower.includes('living') || roomNameLower.includes('family')) icon = '🛋️'
+        else if (roomNameLower.includes('dining')) icon = '🍽️'
+        else if (roomNameLower.includes('foyer') || roomNameLower.includes('entry')) icon = '🚪'
+        else if (roomNameLower.includes('basement')) icon = '⬇️'
+        else if (roomNameLower.includes('laundry')) icon = '🧺'
+        else if (roomNameLower.includes('office')) icon = '💼'
+        else if (roomNameLower.includes('closet')) icon = '👔'
+
+        return {
+          id: room.id || room.name.toLowerCase().replace(/\s+/g, '_'),
+          name: room.name,
+          icon: icon,
+          length: room.length,
+          width: room.width,
+          total_sf: room.total_sf
+        }
       })
-      setRooms(mergedRooms)
+
+      // Combine: General rooms first, then property-specific rooms
+      const combinedRooms = [...generalRooms, ...propertyRooms]
+      setRooms(combinedRooms)
+
+      console.log('Loaded rooms from property info:', combinedRooms)
     }
   }, [propertyInfo])
 
