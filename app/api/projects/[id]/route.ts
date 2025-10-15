@@ -58,6 +58,9 @@ export async function PUT(
     const body = await request.json()
     const { name, address, entity_num, budget, status } = body
 
+    console.log('Updating project:', id)
+    console.log('Update data:', { name, address, entity_num, budget, status })
+
     const { data: project, error } = await supabase
       .from('projects')
       .update({
@@ -74,9 +77,11 @@ export async function PUT(
 
     if (error) {
       console.error('Error updating project:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2))
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    console.log('Successfully updated project')
     return NextResponse.json({ project })
   } catch (error) {
     console.error('Unexpected error:', error)

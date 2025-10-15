@@ -50,6 +50,10 @@ export async function POST(
     const body = await request.json()
     const { rooms, ...propertyData } = body
 
+    console.log('Received property info update for project:', id)
+    console.log('Property data keys:', Object.keys(propertyData))
+    console.log('Rooms count:', rooms?.length || 0)
+
     // Check if property info already exists
     const { data: existing } = await supabase
       .from('property_infos')
@@ -61,6 +65,7 @@ export async function POST(
 
     if (existing) {
       // Update existing
+      console.log('Updating existing property info:', existing.id)
       const { data, error } = await supabase
         .from('property_infos')
         .update(propertyData)
@@ -70,6 +75,7 @@ export async function POST(
 
       if (error) {
         console.error('Error updating property info:', error)
+        console.error('Property data that failed:', JSON.stringify(propertyData, null, 2))
         return NextResponse.json({
           error: error.message,
           details: error.details,
@@ -78,6 +84,7 @@ export async function POST(
         }, { status: 500 })
       }
       propertyInfo = data
+      console.log('Successfully updated property info')
     } else {
       // Create new
       const { data, error } = await supabase
@@ -114,9 +121,11 @@ export async function POST(
           name: room.name,
           length: room.length || 0,
           width: room.width || 0,
-          misc_sf: room.miscSf || 0,
-          misc_note: room.miscNote || ''
+          misc_sf: room.misc_sf || room.miscSf || 0,
+          misc_note: room.misc_note || room.miscNote || ''
         }))
+
+        console.log('Inserting rooms:', roomsToInsert.length)
 
         const { error: roomError } = await supabase
           .from('rooms')
@@ -132,8 +141,11 @@ export async function POST(
             code: roomError.code
           }, { status: 500 })
         }
+        console.log('Successfully inserted rooms')
       }
     }
+
+    console.log('Property info save completed successfully')
 
     // Fetch complete data
     const { data: completeData } = await supabase
