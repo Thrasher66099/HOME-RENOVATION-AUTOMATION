@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { AlertCircle, Plus, X } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { createClient } from "@/lib/supabase/client"
 
 interface PropertyMetricsStepProps {
   formData: any
@@ -43,10 +44,28 @@ const generateDefaultRooms = (bedroomCount: number) => {
 }
 
 export function PropertyMetricsStep({ formData, updateFormData }: PropertyMetricsStepProps) {
+  const supabase = createClient()
   const [rooms, setRooms] = useState(
     formData.rooms.length > 0 ? formData.rooms : generateDefaultRooms(formData.bedrooms || 3)
   )
   const [customRoomName, setCustomRoomName] = useState("")
+  const [regions, setRegions] = useState<any[]>([])
+
+  // Fetch regions on mount
+  useEffect(() => {
+    fetchRegions()
+  }, [])
+
+  const fetchRegions = async () => {
+    const { data, error } = await supabase
+      .from('regions')
+      .select('*')
+      .order('state', { ascending: true })
+
+    if (!error && data) {
+      setRegions(data)
+    }
+  }
 
   // Update rooms when bedroom count changes
   useEffect(() => {
@@ -302,13 +321,14 @@ export function PropertyMetricsStep({ formData, updateFormData }: PropertyMetric
             <Label htmlFor="region">Region</Label>
             <Select value={formData.region} onValueChange={(value) => updateFormData({ region: value })}>
               <SelectTrigger className="max-w-xs">
-                <SelectValue />
+                <SelectValue placeholder="Select a region..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="IL">Illinois (1.21x)</SelectItem>
-                <SelectItem value="CA">California (1.35x)</SelectItem>
-                <SelectItem value="TX">Texas (1.08x)</SelectItem>
-                <SelectItem value="NY">New York (1.42x)</SelectItem>
+                {regions.map((region) => (
+                  <SelectItem key={region.id} value={region.id}>
+                    {region.name}, {region.state} ({region.rsmeans_factor}x)
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
