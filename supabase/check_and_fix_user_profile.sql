@@ -1,27 +1,26 @@
 -- Check your current user and profile
 SELECT
   auth.uid() as user_id,
-  auth.email() as email,
-  p.role as current_role
+  (SELECT email FROM auth.users WHERE id = auth.uid()) as email,
+  p.role as current_role,
+  p.created_at
 FROM profiles p
 WHERE p.id = auth.uid();
 
--- If the above returns no results or role is NULL, run this to create/update your profile:
--- Replace 'your-email@example.com' with your actual email
+-- If the above returns no results, your profile doesn't exist
+-- If role is NULL or you need to change it, run this:
 
-INSERT INTO profiles (id, email, role, created_at, updated_at)
-SELECT
-  id,
-  email,
-  'Admin',
-  now(),
-  now()
-FROM auth.users
-WHERE email = 'your-email@example.com'
+-- Create or update your profile to Admin role
+INSERT INTO profiles (id, role, created_at)
+VALUES (auth.uid(), 'Admin', NOW())
 ON CONFLICT (id)
 DO UPDATE SET
-  role = 'Admin',
-  updated_at = now();
+  role = 'Admin';
 
 -- Verify it worked
-SELECT id, email, role FROM profiles WHERE id = auth.uid();
+SELECT
+  auth.uid() as user_id,
+  (SELECT email FROM auth.users WHERE id = auth.uid()) as email,
+  p.role as current_role
+FROM profiles p
+WHERE p.id = auth.uid();
